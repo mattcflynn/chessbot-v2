@@ -1,6 +1,6 @@
 # Parts List — Chessbot v2
 
-Estimated total (excluding Pi and Lego minifigs): **~$80–130**
+Estimated total (excluding Pi and Lego minifigs): **~$80–135**
 
 ---
 
@@ -10,8 +10,24 @@ Estimated total (excluding Pi and Lego minifigs): **~$80–130**
 |---|---|
 | Raspberry Pi 4 (2GB or 4GB) | Pi 5 also works. Pi Zero 2W is too slow for Stockfish. |
 | 32GB+ microSD card (Class 10) | |
-| USB-C power supply, 5V/3A | Official Pi 4 PSU recommended |
 | Heatsink + small fan | Stockfish runs the CPU hot |
+
+> The Pi is powered via GPIO pins from the shared 5V supply (see Power section) — no USB-C supply needed.
+
+---
+
+## Power
+
+Single supply for the entire build. Both the LED panel and Pi run on 5V, so one barrel-jack supply handles everything.
+
+| Part | Notes |
+|---|---|
+| 5V 5A DC power supply, 5.5mm barrel jack | Enough for LEDs (~0.4A at default brightness) + Pi under load (~1.2A) with headroom. Search "5V 5A DC power supply barrel jack". ~$12–15. |
+| Panel-mount 5.5mm barrel jack socket | Mounts flush on the box wall for a clean single-cord connection. ~$2. |
+
+**Internal wiring:** barrel jack → shared 5V/GND bus → LED panel (5V + GND directly) and Pi GPIO pin 4 (5V) + pin 6 (GND). Put the 1000 µF capacitor across the bus near the LED panel terminals.
+
+> Powering the Pi through GPIO bypasses its polyfuse — fine for a fixed installation that's never hot-plugging devices.
 
 ---
 
@@ -21,11 +37,8 @@ Estimated total (excluding Pi and Lego minifigs): **~$80–130**
 |---|---|---|
 | WS2812B 8×8 LED matrix panel | 1 | Buy as a pre-soldered 64-LED PCB (~$12–20). Search "WS2812B 8x8 matrix panel". Much easier than cutting strip. |
 | 74AHCT125 quad level shifter | 1 | Converts Pi's 3.3V data signal to 5V for WS2812B. ~$2. |
-| 1000 µF 6.3V electrolytic capacitor | 1 | Across the LED panel's 5V and GND rails — protects against power surge on startup. |
-| 5V 2A DC power supply (barrel jack) | 1 | Powers the LED panel separately from the Pi. ~$8. At 31% brightness (the default), 64 LEDs draw ~1.2A. |
+| 1000 µF 6.3V electrolytic capacitor | 1 | Across the shared power bus near the LED panel — absorbs startup surge. |
 | 300–500 ohm resistor | 1 | On the data wire between Pi GPIO18 and the level shifter input. |
-
-> **Why separate power?** At full brightness 64 WS2812B LEDs can draw 3.8A — more than the Pi's 5V rail can share safely. A separate supply avoids crashes and brownouts. Connect grounds together.
 
 ---
 
@@ -33,9 +46,9 @@ Estimated total (excluding Pi and Lego minifigs): **~$80–130**
 
 | Part | Qty | Notes |
 |---|---|---|
-| Tactile push button, 6mm × 6mm, through-hole | 16 | 8 for columns (a–h) + 8 for rows (1–8). Any momentary normally-open button works. ~$5 for a 50-pack. |
-| Button caps, two colors | 16 | Optional but helpful — one color for column buttons, another for row buttons so they're visually distinct. |
-| Small perfboard or proto-PCB | 1 | For mounting buttons in a clean L-shape along two board edges. |
+| Tactile push button, 6mm × 6mm, through-hole | 18 | 8 column (a–h) + 8 row (1–8) + 1 SELECT + 1 BACK/MENU. ~$5 for a 50-pack. |
+| Button caps, three colors | 18 | One color for column buttons, one for row buttons, a distinct color for SELECT and BACK. |
+| Small perfboard or proto-PCB | 1 | Mount column buttons along one board edge, row buttons along the adjacent edge, SELECT + BACK under the TFT display. |
 
 ---
 
@@ -84,11 +97,12 @@ Adjust in code if your physical wiring differs:
 |---|---|---|
 | NeoPixel data | 18 (PWM0) | `board_leds.py` |
 | Column buttons a–h | 4, 5, 6, 7, 19, 20, 26, 27 | `board_input.py` → `COL_PINS` |
-| Row buttons 1–8 | 12, 13, 14, 15, 16, 17, 22, 23 | `board_input.py` → `ROW_PINS` |
+| Row buttons 1–8 | 12, 13, 14, 15, 16, 17, 21, 22 | `board_input.py` → `ROW_PINS` |
+| SELECT button | 2 | `board_input.py` → `SELECT_PIN` |
+| BACK/MENU button | 3 | `board_input.py` → `BACK_PIN` |
 | TFT CS | 8 (CE0) | `display.py` |
 | TFT DC | 25 | `display.py` |
 | TFT RST | 24 | `display.py` |
-| TFT backlight | 7 | `display.py` |
+| TFT backlight | 23 | `display.py` |
 | SPI SCK/MOSI/MISO | 11, 10, 9 (hardware SPI) | `display.py` |
-
-> **Note:** The pin assignments in this table are corrected from the defaults in `board_input.py` to avoid conflicts with SPI (GPIO 8–11) and NeoPixels (GPIO 18). Update `COL_PINS` and `ROW_PINS` in `board_input.py` to match.
+| Pi power (from bus) | Pin 4 (5V) + Pin 6 (GND) | Physical header pins, not BCM |

@@ -6,7 +6,7 @@ Wiring (Waveshare 3.5" or Adafruit 3.5" TFT HAT — adjust pins to match your bo
   CS  → GPIO8  (CE0, hardware SPI)
   DC  → GPIO25
   RST → GPIO24
-  BL  → GPIO7  (backlight, set HIGH to enable)
+  BL  → GPIO23 (backlight, set HIGH to enable)
 
 Off-Pi: prints state to terminal instead.
 """
