@@ -1,8 +1,20 @@
 # Chessbot v2 — User Guide
 
-## Starting the Game
+## Main Menu
 
-Press any **row button (1–8)** to choose your difficulty level. The TFT screen shows what each number means.
+When the game starts, the screen shows three options. Press the matching row button to choose.
+
+| Row button | Option |
+|---|---|
+| 1 | **1 Player** — play against the computer |
+| 2 | **2 Players** — play against another person |
+| 3 | **Shutdown** — safely power off the board |
+
+---
+
+## 1 Player Mode
+
+After selecting 1 Player, press a **row button (1–8)** to choose difficulty.
 
 | Row button | Level |
 |---|---|
@@ -10,63 +22,71 @@ Press any **row button (1–8)** to choose your difficulty level. The TFT screen
 | 4 | Medium |
 | 8 | Hardest |
 
+You play White. The computer plays Black and moves automatically.
+
+On difficulty 1–4, the LEDs show which squares your selected piece can legally move to.
+
 ---
 
-## Playing
+## 2 Player Mode
 
-You play White. The computer plays Black. Each turn follows the same button sequence to pick up and place a piece.
+Both players use the same board and buttons. White goes first, then Black, alternating each turn. The screen and LEDs always show whose turn it is.
 
-### Making a Move
+Valid move hints are always on in 2-player — both players see the legal squares for any selected piece.
 
-There are four buttons: **8 column buttons (a–h)** along one edge, **8 row buttons (1–8)** along the adjacent edge, plus **SELECT** and **BACK/MENU** below the screen.
+---
+
+## Making a Move
+
+The same button flow applies in both modes.
 
 **Step 1 — Your pieces light up**
 
-At the start of your turn, every square with one of your pieces glows dim amber. This is your cue to start picking.
+At the start of your turn, every square with one of your pieces glows dim amber.
 
 **Step 2 — Press a column button (a–h)**
 
-The pieces you have in that column glow brighter. If you picked the wrong column, just press a different one.
+Your pieces in that column glow brighter. Press a different column to change your mind.
 
 **Step 3 — Press a row button (1–8)**
 
-The piece on that square is now selected — it glows cyan. On difficulty 1–4, the squares it can legally move to glow dim green.
+That piece is now selected — it glows cyan. Legal destinations glow dim green.
 
-If there's no piece of yours at that square, the LEDs flash red briefly and you go back to step 1.
+If there's no piece of yours at that square, the LEDs flash red and you go back to step 1.
 
 **Step 4 — Press a column button for your destination**
 
-The valid destinations in that column glow bright green (difficulty 1–4). Others stay dim.
+Valid destinations in that column glow bright green.
 
 **Step 5 — Press a row button for your destination**
 
-If the move is illegal, the LEDs flash red and you go back to step 4. If it's legal, the from-square glows amber and the to-square glows green, waiting for you to confirm.
+If the move is illegal the LEDs flash red and you stay in step 4. If it's legal, the from-square glows amber and the to-square glows green.
 
-**Step 6 — Press SELECT**
+**Step 6 — Press SELECT to confirm**
 
-The move is confirmed. Move your piece on the physical board.
+The move is made. Move the piece on the physical board.
 
-> **Changed your mind?** Press **BACK** at any step to cancel and go back to step 1.
-
----
-
-### After the Computer Moves
-
-The computer's from-square glows amber and its to-square glows green. Move those pieces on the physical board, then press **SELECT** (or Enter in keyboard mode) to continue.
+> **Changed your mind?** Press **BACK** at any step to cancel and return to step 1.
 
 ---
 
-### The Menu
+## After the Computer Moves (1 Player)
 
-Press **BACK** when no piece is selected (step 1) to open the menu. The TFT screen shows the options; press the matching row button to choose.
+The computer's from-square glows amber and its to-square glows green. Move those pieces on the physical board, then press **SELECT** to continue.
+
+---
+
+## The In-Game Menu
+
+Press **BACK** when no piece is selected (at step 1) to open the menu. The screen shows the options; press the matching row button to choose.
 
 | Row button | Option |
 |---|---|
-| 1 | **Hint** — lights up the best move on the board LEDs |
+| 1 | **Hint** — lights up the best move on the LEDs |
 | 2 | **Analyze** — shows the position evaluation on screen |
 | 3 | **Save Game** — saves the current game to `~/chess_games/` |
-| 4 | **Score** — shows your win/loss/draw record for this session |
-| 5 | **Resign** — end the game as a loss |
+| 4 | **Score** — shows your win/loss/draw record for this session (1 player only) |
+| 5 | **Resign** — end the game; in 2-player, declares the other player the winner |
 
 Press **BACK** to close the menu without choosing anything.
 
@@ -79,8 +99,8 @@ Press **BACK** to close the menu without choosing anything.
 | Dim amber | Your pieces — pick one |
 | Bright amber | Your pieces in the selected column |
 | Cyan | Selected piece |
-| Dim green | Squares that piece can legally move to (difficulty 1–4) |
-| Bright green | Legal destinations in the selected column (difficulty 1–4) |
+| Dim green | Legal destinations for that piece |
+| Bright green | Legal destinations in the selected column |
 | Amber + green | Pending move — press SELECT to confirm |
 | Blue | Hint move (from and to) |
 | Red flash | Invalid selection |
@@ -90,20 +110,20 @@ Press **BACK** to close the menu without choosing anything.
 
 ## The Screen
 
-The TFT display shows a color chess board with piece letters, whose turn it is, and the computer's last move. After the computer plays, its move appears in the top-right corner.
-
-On difficulty 1–4 the board LEDs guide you through legal moves, but the screen always shows the full position if you want to look ahead.
+The TFT display shows a color chess board with piece letters, whose turn it is, and the computer's last move (1 player). On difficulty 1–4 the LEDs guide you through legal moves, but the screen always shows the full position.
 
 ---
 
 ## Keyboard Mode (no hardware)
 
-When running on a Mac without the physical buttons, you play by typing:
+When running on a Mac without the physical buttons:
 
 | Type | What it does |
 |---|---|
-| `e2e4` or `5254` | Make a move |
-| `a`–`h` then `1`–`8` | Simulate button presses one at a time |
+| `1`, `2`, `3` | Main menu selection |
+| `1`–`8` | Difficulty / row button |
+| `e2e4` or `5254` | Make a move directly |
+| `a`–`h` then `1`–`8` | Simulate column then row button |
 | Enter (blank) | SELECT |
 | `x` | BACK / open menu |
 
@@ -124,12 +144,12 @@ R N B Q K B N R   ← White's pieces (rank 1)
 
 ## Game Over
 
-The game ends automatically on checkmate, stalemate, or insufficient material. Press SELECT (or Enter) to return to the difficulty selection screen and start a new game.
+The game ends automatically on checkmate, stalemate, or insufficient material. Press SELECT (or Enter) to return to the main menu.
 
 ---
 
 ## Tips
 
-- The piece *type* is tracked in software — only the position matters. Make sure your physical moves match what you enter.
+- The piece *type* is tracked in software — only the position matters. Make sure your physical moves match what you select.
 - Pawns that reach the back rank automatically promote to a queen.
 - The eval score (Analyze menu) is in centipawns: +100 means White is up roughly one pawn. Negative means Black is winning.
