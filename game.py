@@ -28,7 +28,7 @@ def play_game(skill_level: int, leds: BoardLEDs, inp: BoardInput, display: Displ
     engine = ChessEngine(skill_level)
     player_turn = True  # White = player
 
-    display.show_game_state("White", None, None, False)
+    display.show_board(engine.board, "White", None, False)
     leds.clear()
 
     try:
@@ -60,14 +60,18 @@ def play_game(skill_level: int, leds: BoardLEDs, inp: BoardInput, display: Displ
 
 
 def _player_turn(engine: ChessEngine, leds: BoardLEDs, inp: BoardInput, display: Display):
-    display.show_game_state("White", None, None, engine.is_in_check())
+    display.show_board(engine.board, "White", None, engine.is_in_check())
 
     while True:
-        print("\nEnter move (col+row twice), or: h=hint  e=eval  q=quit")
+        print("\nEnter move (col+row twice), or: b=board  h=hint  e=eval  q=quit")
         cmd = input("> ").strip().lower()
 
         if cmd == "q":
             raise KeyboardInterrupt
+
+        if cmd == "b":
+            display.show_board(engine.board, "White", None, engine.is_in_check())
+            continue
 
         if cmd == "h":
             hint = engine.get_hint()
@@ -76,7 +80,7 @@ def _player_turn(engine: ChessEngine, leds: BoardLEDs, inp: BoardInput, display:
             leds.highlight_move(from_sq, to_sq, HINT_COLOR, HINT_COLOR)
             display.show_message(f"Hint: {from_sq}-{to_sq}")
             input("Press Enter to continue...")
-            display.show_game_state("White", None, None, engine.is_in_check())
+            display.show_board(engine.board, "White", None, engine.is_in_check())
             continue
 
         if cmd == "e":
@@ -84,7 +88,7 @@ def _player_turn(engine: ChessEngine, leds: BoardLEDs, inp: BoardInput, display:
             label = f"{'+' if score and score >= 0 else ''}{score / 100:.1f}" if score is not None else "mate"
             display.show_message(f"Eval: {label}", "from White's view")
             input("Press Enter to continue...")
-            display.show_game_state("White", None, None, engine.is_in_check())
+            display.show_board(engine.board, "White", None, engine.is_in_check())
             continue
 
         # Normal move input: use hardware buttons or keyboard fallback
@@ -133,7 +137,7 @@ def _computer_turn(engine: ChessEngine, leds: BoardLEDs, display: Display):
     move_str  = f"{from_name}-{to_name}"
 
     in_check = engine.is_in_check()
-    display.show_game_state("Black", move_str, None, in_check)
+    display.show_board(engine.board, "White", move_str, in_check)
     leds.highlight_move(from_name, to_name, FROM_COLOR, TO_COLOR)
 
     if in_check:

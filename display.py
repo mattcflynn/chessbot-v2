@@ -19,6 +19,7 @@ try:
 except ImportError:
     _HARDWARE = False
 
+import chess
 from PIL import Image, ImageDraw, ImageFont
 
 SCREEN_W, SCREEN_H = 480, 320
@@ -99,6 +100,52 @@ class Display:
 
         if not self._tft:
             print(f"[Display] {line1}  {line2}")
+
+    def show_board(self, board: chess.Board, turn: str, last_move: str | None, in_check: bool):
+        SQUARE = 35
+        BX, BY = 10, 20
+        LIGHT_SQ = (240, 217, 181)
+        DARK_SQ  = (181, 136, 99)
+
+        img = Image.new("RGB", (SCREEN_W, SCREEN_H), BG_COLOR)
+        d = ImageDraw.Draw(img)
+
+        for rank in range(8):
+            for file in range(8):
+                x = BX + file * SQUARE
+                y = BY + (7 - rank) * SQUARE
+                sq_color = LIGHT_SQ if (file + rank) % 2 == 1 else DARK_SQ
+                d.rectangle([x, y, x + SQUARE - 1, y + SQUARE - 1], fill=sq_color)
+
+                piece = board.piece_at(chess.square(file, rank))
+                if piece:
+                    sym = piece.symbol().upper()
+                    fg = (30, 30, 30) if piece.color == chess.WHITE else (240, 240, 240)
+                    d.text((x + 9, y + 7), sym, font=self._font_small, fill=fg)
+
+        # Rank labels
+        for rank in range(8):
+            d.text((BX - 10, BY + (7 - rank) * SQUARE + 10), str(rank + 1),
+                   font=self._font_small, fill=TEXT_COLOR)
+
+        # Sidebar
+        turn_color = ACCENT_COLOR if turn == "White" else WARNING_COLOR
+        d.text((300, 20),  f"{turn}'s", font=self._font_med, fill=turn_color)
+        d.text((300, 50),  "turn",      font=self._font_med, fill=turn_color)
+        if in_check:
+            d.text((300, 90), "CHECK!", font=self._font_med, fill=WARNING_COLOR)
+        if last_move:
+            d.text((300, 140), "Comp:", font=self._font_small, fill=TEXT_COLOR)
+            d.text((300, 165), last_move.upper(), font=self._font_med, fill=ACCENT_COLOR)
+
+        self._render(img)
+
+        if not self._tft:
+            print(board)
+            arrow = "→" if turn == "White" else "←"
+            check = " CHECK!" if in_check else ""
+            move_info = f"  Computer: {last_move}" if last_move else ""
+            print(f"[Display] {arrow} {turn}'s turn{check}{move_info}")
 
     def show_skill_prompt(self):
         img = Image.new("RGB", (SCREEN_W, SCREEN_H), BG_COLOR)
