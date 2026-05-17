@@ -2,19 +2,36 @@ import chess
 import chess.pgn
 import subprocess
 import datetime
-import os
 from pathlib import Path
 
 from chess_engine import ChessEngine
-from board_leds import (BoardLEDs, HINT_COLOR, FROM_COLOR, TO_COLOR)
+from board_leds import BoardLEDs, HINT_COLOR, FROM_COLOR, TO_COLOR
 from board_input import ButtonReader, _HARDWARE
 from display import Display, ACCENT_COLOR, WARNING_COLOR, TEXT_COLOR
 from key_in import convert_input
 
 MENU_OPTIONS = ["Hint", "Analyze", "Save Game", "Score", "Resign"]
 
-# Session score
+# Session score (1-player only)
 _score = {"wins": 0, "losses": 0, "draws": 0}
+
+
+# ── Main menu ─────────────────────────────────────────────────────────────────
+
+def main_menu(display: Display, leds: BoardLEDs, buttons: ButtonReader) -> str:
+    """Returns 'one_player', 'two_player', or 'shutdown'."""
+    display.show_menu(["1 Player", "2 Players", "Shutdown"], title="Chessbot v2")
+    leds.clear()
+    actions = ['one_player', 'two_player', 'shutdown']
+
+    while True:
+        btn_type, idx = buttons.wait_for_any()
+        if btn_type == 'row' and idx < len(actions):
+            return actions[idx]
+        if btn_type == 'move_shortcut':
+            raw = idx
+            if raw.isdigit() and 1 <= int(raw) <= len(actions):
+                return actions[int(raw) - 1]
 
 
 # ── Skill level selection ─────────────────────────────────────────────────────
@@ -23,13 +40,9 @@ def get_skill_level(display: Display, leds: BoardLEDs, buttons: ButtonReader) ->
     display.show_skill_prompt()
     leds.clear()
     if _HARDWARE:
-        row = buttons.wait_for_row()   # row buttons 1-8 map directly to levels 1-8
-        return row + 1
+        return buttons.wait_for_row() + 1
     while True:
-        raw = input("Difficulty 1-8 (or 911 to shutdown): ").strip()
-        if raw == "911":
-            display.show_message("Shutting down...", color=WARNING_COLOR)
-            subprocess.run(["sudo", "shutdown", "-h", "now"])
+        raw = input("Difficulty 1-8: ").strip()
         try:
             level = int(raw)
             if 1 <= level <= 8:
@@ -45,12 +58,12 @@ def _select_move(board: chess.Board, player_color: chess.Color,
                  show_hints: bool, leds: BoardLEDs,
                  buttons: ButtonReader) -> tuple[str, str] | str:
     """
-    State machine: guides the player through picking a from/to square.
+    Guides the player through picking a from/to square.
     Returns (from_sq, to_sq) strings, or 'menu' if the menu was requested.
 
-    BACK button in idle state → 'menu'
-    BACK button mid-selection → resets to idle (show all pieces)
-    SELECT button after dest chosen → confirms move
+    BACK in idle state → 'menu'
+    BACK mid-selection → reset to idle
+    SELECT after dest chosen → confirm move
     """
     files = "abcdefgh"
 
@@ -63,9 +76,8 @@ def _select_move(board: chess.Board, player_color: chess.Color,
     while True:
         btn_type, idx = buttons.wait_for_any()
 
-        # ── Shortcut: keyboard typed full move (dev mode only) ────────────────
         if btn_type == 'move_shortcut':
-            raw = idx  # idx holds the raw string in this case
+            raw = idx
             try:
                 uci = convert_input(raw) if len(raw) == 4 else raw
                 return uci[:2], uci[2:]
@@ -74,24 +86,21 @@ def _select_move(board: chess.Board, player_color: chess.Color,
                 reset_to_idle()
                 continue
 
-        # ── BACK / MENU ───────────────────────────────────────────────────────
         if btn_type == 'back':
             if from_col is None:
-                return 'menu'       # idle state → open menu
-            reset_to_idle()         # mid-selection → start over
+                return 'menu'
+            reset_to_idle()
             from_col = None
             continue
 
         if btn_type == 'select':
-            continue  # SELECT only valid when confirming a pending move
+            continue
 
-        # ── Column press: narrow down which piece to pick ─────────────────────
         if btn_type == 'col':
             from_col = idx
             leds.show_pieces_in_col(board, player_color, from_col)
             continue
 
-        # ── Row press: attempt to select a piece ─────────────────────────────
         if btn_type == 'row' and from_col is not None:
             sq_name = f"{files[from_col]}{idx + 1}"
             sq = chess.parse_square(sq_name)
@@ -103,7 +112,6 @@ def _select_move(board: chess.Board, player_color: chess.Color,
                 from_col = None
                 continue
 
-            # ── Piece confirmed — now pick destination ────────────────────────
             from_sq = sq_name
             from_chess_sq = sq
             leds.show_selected_and_valid(board, from_chess_sq, show_hints)
@@ -125,7 +133,7 @@ def _select_move(board: chess.Board, player_color: chess.Color,
                 if b2 == 'back':
                     reset_to_idle()
                     from_col = None
-                    break  # back to outer loop
+                    break
 
                 if b2 == 'col':
                     dest_col = i2
@@ -136,7 +144,6 @@ def _select_move(board: chess.Board, player_color: chess.Color,
                     to_sq = f"{files[dest_col]}{i2 + 1}"
                     to_chess_sq = chess.parse_square(to_sq)
 
-                    # Auto-promote to queen
                     promotion = None
                     if (board.piece_type_at(from_chess_sq) == chess.PAWN and
                             chess.square_rank(to_chess_sq) in (0, 7)):
@@ -148,7 +155,6 @@ def _select_move(board: chess.Board, player_color: chess.Color,
                         leds.show_valid_in_col(board, from_chess_sq, dest_col, show_hints)
                         continue
 
-                    # ── Move valid — wait for SELECT ──────────────────────────
                     to_uci = to_sq + ('q' if promotion else '')
                     leds.show_pending_move(from_sq, to_sq)
 
@@ -159,21 +165,16 @@ def _select_move(board: chess.Board, player_color: chess.Color,
                         if b3 == 'back':
                             dest_col = None
                             leds.show_selected_and_valid(board, from_chess_sq, show_hints)
-                            break  # back to dest selection
-                        # Ignore other buttons while confirming
+                            break
 
 
-# ── Menu ──────────────────────────────────────────────────────────────────────
+# ── In-game menu ──────────────────────────────────────────────────────────────
 
 def _show_menu(engine: ChessEngine, leds: BoardLEDs,
                buttons: ButtonReader, display: Display) -> str:
-    """
-    Shows the in-game menu. Returns an action string:
-    'hint', 'analyze', 'save', 'score', 'resign', or 'cancel'.
-    """
+    """Returns 'hint', 'analyze', 'save', 'score', 'resign', or 'cancel'."""
     display.show_menu(MENU_OPTIONS)
     leds.show_menu_idle()
-
     actions = ['hint', 'analyze', 'save', 'score', 'resign']
 
     while True:
@@ -191,7 +192,9 @@ def _show_menu(engine: ChessEngine, leds: BoardLEDs,
 
 
 def _handle_menu_action(action: str, engine: ChessEngine, leds: BoardLEDs,
-                        display: Display, game_pgn: list[str]):
+                        display: Display, move_history: list[str],
+                        player_color: chess.Color = chess.WHITE,
+                        track_score: bool = True) -> bool:
     """Execute a menu action. Returns True if the game should end."""
     if action == 'hint':
         hint = engine.get_hint()
@@ -204,16 +207,13 @@ def _handle_menu_action(action: str, engine: ChessEngine, leds: BoardLEDs,
 
     if action == 'analyze':
         score = engine.evaluate()
-        if score is None:
-            label = "Forced mate"
-        else:
-            label = f"{'+'if score>=0 else ''}{score/100:.1f} (White)"
+        label = "Forced mate" if score is None else f"{'+'if score>=0 else ''}{score/100:.1f} (White)"
         display.show_message("Position eval:", label)
         print(f"Eval: {label}")
         return False
 
     if action == 'save':
-        _save_pgn(game_pgn, engine)
+        _save_pgn(move_history, engine)
         display.show_message("Game saved!", color=ACCENT_COLOR)
         print("Game saved.")
         return False
@@ -226,10 +226,13 @@ def _handle_menu_action(action: str, engine: ChessEngine, leds: BoardLEDs,
         return False
 
     if action == 'resign':
-        display.show_message("You resigned.", color=WARNING_COLOR)
+        resigner = "White" if player_color == chess.WHITE else "Black"
+        winner   = "Black" if player_color == chess.WHITE else "White"
+        display.show_message(f"{resigner} resigned.", f"{winner} wins!", color=WARNING_COLOR)
         leds.clear()
-        _score['losses'] += 1
-        print("You resigned.")
+        if track_score:
+            _score['losses'] += 1
+        print(f"{resigner} resigned. {winner} wins!")
         input("Press Enter to continue...")
         return True
 
@@ -256,24 +259,24 @@ def _save_pgn(move_history: list[str], engine: ChessEngine):
 # ── Turn handlers ─────────────────────────────────────────────────────────────
 
 def _player_turn(engine: ChessEngine, leds: BoardLEDs, buttons: ButtonReader,
-                 display: Display, skill_level: int,
-                 move_history: list[str]) -> bool:
-    """
-    Handles one player turn. Returns True if game should end (resign).
-    """
-    show_hints = skill_level <= 4
-    display.show_board(engine.board, "White", None, engine.is_in_check())
+                 display: Display, show_hints: bool, move_history: list[str],
+                 player_color: chess.Color, track_score: bool = True) -> bool:
+    """Handles one human turn. Returns True if the game should end (resign)."""
+    turn_name = "White" if player_color == chess.WHITE else "Black"
+    opponent  = chess.BLACK if player_color == chess.WHITE else chess.WHITE
+
+    display.show_board(engine.board, turn_name, None, engine.is_in_check())
 
     while True:
-        result = _select_move(engine.board, chess.WHITE, show_hints, leds, buttons)
+        result = _select_move(engine.board, player_color, show_hints, leds, buttons)
 
         if result == 'menu':
             action = _show_menu(engine, leds, buttons, display)
-            if _handle_menu_action(action, engine, leds, display, move_history):
-                return True  # resigned
-            # Restore board display after menu
-            display.show_board(engine.board, "White", None, engine.is_in_check())
-            leds.show_player_pieces(engine.board, chess.WHITE)
+            if _handle_menu_action(action, engine, leds, display, move_history,
+                                   player_color=player_color, track_score=track_score):
+                return True
+            display.show_board(engine.board, turn_name, None, engine.is_in_check())
+            leds.show_player_pieces(engine.board, player_color)
             continue
 
         from_sq, to_sq = result
@@ -285,8 +288,8 @@ def _player_turn(engine: ChessEngine, leds: BoardLEDs, buttons: ButtonReader,
                 chess.AmbiguousMoveError) as e:
             print(f"Illegal move: {e}")
             leds.flash_error()
-            display.show_board(engine.board, "White", None, engine.is_in_check())
-            leds.show_player_pieces(engine.board, chess.WHITE)
+            display.show_board(engine.board, turn_name, None, engine.is_in_check())
+            leds.show_player_pieces(engine.board, player_color)
             continue
 
         move_history.append(move.uci())
@@ -295,7 +298,7 @@ def _player_turn(engine: ChessEngine, leds: BoardLEDs, buttons: ButtonReader,
         leds.highlight_move(from_name, to_name)
 
         if engine.is_in_check():
-            king_sq = chess.square_name(engine.board.king(chess.BLACK))
+            king_sq = chess.square_name(engine.board.king(opponent))
             leds.highlight_check(king_sq)
             print("Check!")
 
@@ -326,11 +329,13 @@ def _computer_turn(engine: ChessEngine, leds: BoardLEDs,
     input("Move pieces, then press Enter (or any button)...")
 
 
-# ── Main game loop ────────────────────────────────────────────────────────────
+# ── Game loops ────────────────────────────────────────────────────────────────
 
 def play_game(skill_level: int, leds: BoardLEDs,
               buttons: ButtonReader, display: Display):
+    """1-player mode: human (White) vs Stockfish (Black)."""
     engine = ChessEngine(skill_level)
+    show_hints = skill_level <= 4
     player_turn = True
     move_history: list[str] = []
 
@@ -353,11 +358,12 @@ def play_game(skill_level: int, leds: BoardLEDs,
                 display.show_message(msg, color=ACCENT_COLOR)
                 leds.clear()
                 print(msg)
-                input("\nPress Enter to play again...")
+                input("\nPress Enter to continue...")
                 return
 
             if player_turn:
-                resigned = _player_turn(engine, leds, buttons, display, skill_level, move_history)
+                resigned = _player_turn(engine, leds, buttons, display,
+                                        show_hints, move_history, chess.WHITE)
                 if resigned:
                     return
             else:
@@ -368,6 +374,44 @@ def play_game(skill_level: int, leds: BoardLEDs,
         engine.quit()
 
 
+def play_game_2player(leds: BoardLEDs, buttons: ButtonReader, display: Display):
+    """2-player mode: human White vs human Black, with full LED/menu support."""
+    engine = ChessEngine(8)  # engine used for hints and analysis only
+    current_color = chess.WHITE
+    move_history: list[str] = []
+
+    display.show_board(engine.board, "White", None, False)
+    leds.show_player_pieces(engine.board, chess.WHITE)
+
+    try:
+        while True:
+            if engine.is_game_over():
+                outcome = engine.result()
+                if outcome["type"] == "checkmate":
+                    msg = f"Checkmate! {outcome['winner']} wins"
+                elif outcome["type"] == "stalemate":
+                    msg = "Stalemate — Draw"
+                else:
+                    msg = "Draw (insufficient material)"
+                display.show_message(msg, color=ACCENT_COLOR)
+                leds.clear()
+                print(msg)
+                input("\nPress Enter to continue...")
+                return
+
+            resigned = _player_turn(engine, leds, buttons, display,
+                                    show_hints=True, move_history=move_history,
+                                    player_color=current_color, track_score=False)
+            if resigned:
+                return
+
+            current_color = chess.BLACK if current_color == chess.WHITE else chess.WHITE
+    finally:
+        engine.quit()
+
+
+# ── Entry point ───────────────────────────────────────────────────────────────
+
 def main():
     leds    = BoardLEDs()
     buttons = ButtonReader()
@@ -375,10 +419,24 @@ def main():
 
     try:
         while True:
-            skill = get_skill_level(display, leds, buttons)
-            display.show_message(f"Level {skill} — Good luck!", color=ACCENT_COLOR)
-            print(f"Starting at skill level {skill}.")
-            play_game(skill, leds, buttons, display)
+            choice = main_menu(display, leds, buttons)
+
+            if choice == 'shutdown':
+                display.show_message("Shutting down...", color=WARNING_COLOR)
+                subprocess.run(["sudo", "shutdown", "-h", "now"])
+                break
+
+            if choice == 'two_player':
+                display.show_message("2 Player Game", "Good luck!", color=ACCENT_COLOR)
+                print("Starting 2-player game.")
+                play_game_2player(leds, buttons, display)
+
+            if choice == 'one_player':
+                skill = get_skill_level(display, leds, buttons)
+                display.show_message(f"Level {skill} — Good luck!", color=ACCENT_COLOR)
+                print(f"Starting 1-player game at skill level {skill}.")
+                play_game(skill, leds, buttons, display)
+
     except KeyboardInterrupt:
         print("\nGoodbye!")
     finally:
