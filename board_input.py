@@ -1,16 +1,13 @@
 """
-Button-pair input for square selection.
+Button input for the chess board.
 
-Physical layout: 8 column buttons (a-h) along one board edge,
-8 row buttons (1-8) along an adjacent edge. Player presses col then row
-to select a square; one selection = "from", second = "to".
+Hardware layout (adjust pin numbers to match physical wiring):
+  COL_PINS[0..7] → column buttons a-h (along one board edge)
+  ROW_PINS[0..7] → row buttons 1-8 (along adjacent edge)
+  SELECT_PIN     → confirm selection
+  BACK_PIN       → cancel step (idle = open menu; mid-selection = go back)
 
-On Raspberry Pi: RPi.GPIO handles button polling with pull-up resistors.
-Off-Pi: falls back to keyboard input for development.
-
-GPIO pin mapping (adjust to match physical wiring):
-  COL_PINS[0..7] → buttons for columns a-h
-  ROW_PINS[0..7] → buttons for rows 1-8
+All buttons: normally open, active LOW, internal pull-up enabled.
 """
 
 try:
@@ -21,90 +18,95 @@ except ImportError:
 
 import time
 
-COL_PINS = [4, 5, 6, 7, 19, 20, 26, 27]   # GPIO pins for columns a-h
-ROW_PINS = [12, 13, 14, 15, 16, 17, 22, 23]  # GPIO pins for rows 1-8
+SELECT_PIN = 2    # GPIO2 — confirm / select
+BACK_PIN   = 3    # GPIO3 — back one step / open menu from idle
+
+COL_PINS = [4, 5, 6, 7, 19, 20, 26, 27]    # columns a-h
+ROW_PINS = [12, 13, 14, 15, 16, 17, 21, 22] # rows 1-8
 
 DEBOUNCE_MS = 50
 
 
 def _setup_gpio():
     GPIO.setmode(GPIO.BCM)
-    for pin in COL_PINS + ROW_PINS:
+    for pin in COL_PINS + ROW_PINS + [SELECT_PIN, BACK_PIN]:
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 
-def _wait_for_button(pins: list[int]) -> int:
-    """Block until one of the given pins goes LOW. Returns the index pressed."""
-    while True:
-        for i, pin in enumerate(pins):
-            if GPIO.input(pin) == GPIO.LOW:
-                time.sleep(DEBOUNCE_MS / 1000)
-                if GPIO.input(pin) == GPIO.LOW:
-                    while GPIO.input(pin) == GPIO.LOW:
-                        pass
-                    return i
-        time.sleep(0.01)
+def _is_pressed(pin: int) -> bool:
+    return GPIO.input(pin) == GPIO.LOW
 
 
-def _read_square_hardware() -> tuple[int, int]:
-    """Returns (file, rank) both 0-indexed."""
-    file = _wait_for_button(COL_PINS)
-    rank = _wait_for_button(ROW_PINS)
-    return file, rank
+def _wait_release(pin: int):
+    while _is_pressed(pin):
+        time.sleep(0.005)
 
 
-def _read_square_keyboard(prompt: str) -> tuple[int, int]:
-    """Fallback for dev — accepts algebraic input like 'e2'."""
-    files = "abcdefgh"
-    while True:
-        raw = input(prompt).strip().lower()
-        if len(raw) == 2 and raw[0] in files and raw[1] in "12345678":
-            return files.index(raw[0]), int(raw[1]) - 1
-        print("Enter a square like e2")
-
-
-class BoardInput:
+class ButtonReader:
     def __init__(self):
         if _HARDWARE:
             _setup_gpio()
 
-    def read_move(self, on_col_selected=None, on_from_selected=None) -> tuple[str, str]:
+    def wait_for_any(self) -> tuple[str, int]:
         """
-        Prompts for a two-square move. Returns (from_sq, to_sq) as UCI strings, e.g. ('e2', 'e4').
-
-        Callbacks (called with file, rank args, both 0-indexed):
-          on_col_selected   — called after player picks a column (for LED column preview)
-          on_from_selected  — called after from-square is confirmed (for LED from-highlight)
+        Blocks until a button is pressed.
+        Returns one of:
+          ('col', 0-7)   — column button a-h
+          ('row', 0-7)   — row button 1-8
+          ('select', 0)  — SELECT button
+          ('back', 0)    — BACK/MENU button
         """
-        files = "abcdefgh"
+        if not _HARDWARE:
+            return self._kb_any()
 
-        from_sq = self._read_one_square(
-            "from",
-            on_col_selected=on_col_selected,
-            on_square_confirmed=on_from_selected,
+        tagged = (
+            [(pin, 'col', i)    for i, pin in enumerate(COL_PINS)] +
+            [(pin, 'row', i)    for i, pin in enumerate(ROW_PINS)] +
+            [(SELECT_PIN, 'select', 0), (BACK_PIN, 'back', 0)]
         )
-        to_sq = self._read_one_square("to")
-        return from_sq, to_sq
-
-    def _read_one_square(self, label: str, on_col_selected=None, on_square_confirmed=None) -> str:
-        files = "abcdefgh"
         while True:
-            if _HARDWARE:
-                file, rank = _read_square_hardware()
-            else:
-                file, rank = _read_square_keyboard(f"  Select {label} square: ")
+            for pin, btn_type, idx in tagged:
+                if _is_pressed(pin):
+                    time.sleep(DEBOUNCE_MS / 1000)
+                    if _is_pressed(pin):
+                        _wait_release(pin)
+                        return btn_type, idx
+            time.sleep(0.01)
 
-            if on_col_selected:
-                on_col_selected(file, rank)
+    def wait_for_row(self) -> int:
+        """Blocks until a row button (1-8) is pressed. Returns 0-7 index."""
+        if not _HARDWARE:
+            while True:
+                raw = input("Choose row 1-8: ").strip()
+                if len(raw) == 1 and raw in "12345678":
+                    return int(raw) - 1
+            return
+        while True:
+            for i, pin in enumerate(ROW_PINS):
+                if _is_pressed(pin):
+                    time.sleep(DEBOUNCE_MS / 1000)
+                    if _is_pressed(pin):
+                        _wait_release(pin)
+                        return i
+            time.sleep(0.01)
 
-            # On hardware, col and row are separate button presses; on keyboard they arrive together.
-            # The column preview callback fires after col is pressed but before row is pressed.
-            # Since keyboard mode returns both at once, the preview is a no-op in that case.
-
-            sq = f"{files[file]}{rank + 1}"
-            if on_square_confirmed:
-                on_square_confirmed(file, rank)
-            return sq
+    def _kb_any(self) -> tuple[str, int]:
+        """Keyboard simulation for development — single-character input."""
+        files = "abcdefgh"
+        prompt = "col(a-h) row(1-8) select(Enter) back(x): "
+        while True:
+            raw = input(prompt).strip().lower()
+            if not raw:
+                return 'select', 0
+            if raw == 'x':
+                return 'back', 0
+            if len(raw) == 1 and raw in files:
+                return 'col', files.index(raw)
+            if len(raw) == 1 and raw in "12345678":
+                return 'row', int(raw) - 1
+            # Shortcut: full move like e2e4 → return special token
+            if len(raw) == 4:
+                return 'move_shortcut', raw  # handled in game.py
 
     def cleanup(self):
         if _HARDWARE:

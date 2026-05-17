@@ -147,6 +147,22 @@ class Display:
             move_info = f"  Computer: {last_move}" if last_move else ""
             print(f"[Display] {arrow} {turn}'s turn{check}{move_info}")
 
+    def show_menu(self, options: list[str], title: str = "Menu"):
+        img = Image.new("RGB", (SCREEN_W, SCREEN_H), BG_COLOR)
+        d = ImageDraw.Draw(img)
+        d.text((20, 20), title, font=self._font_large, fill=ACCENT_COLOR)
+        for i, opt in enumerate(options):
+            y = 80 + i * 44
+            d.text((20, y), f"[{i+1}]", font=self._font_med, fill=ACCENT_COLOR)
+            d.text((80, y), opt,        font=self._font_med, fill=TEXT_COLOR)
+        d.text((20, SCREEN_H - 40), "BACK = cancel", font=self._font_small, fill=(100, 100, 100))
+        self._render(img)
+        if not self._tft:
+            print(f"\n[Menu: {title}]")
+            for i, opt in enumerate(options):
+                print(f"  [{i+1}] {opt}")
+            print("  [x] Cancel")
+
     def show_skill_prompt(self):
         img = Image.new("RGB", (SCREEN_W, SCREEN_H), BG_COLOR)
         d = ImageDraw.Draw(img)
