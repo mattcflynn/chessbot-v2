@@ -1,4 +1,5 @@
 import chess
+import chess.pgn
 import subprocess
 import datetime
 import os
