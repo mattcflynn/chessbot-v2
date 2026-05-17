@@ -21,8 +21,8 @@ except ImportError:
 
 import time
 
-COL_PINS = [4, 5, 6, 7, 8, 9, 10, 11]    # GPIO pins for columns a-h
-ROW_PINS = [12, 13, 14, 15, 16, 17, 20, 21]  # GPIO pins for rows 1-8
+COL_PINS = [4, 5, 6, 7, 19, 20, 26, 27]   # GPIO pins for columns a-h
+ROW_PINS = [12, 13, 14, 15, 16, 17, 22, 23]  # GPIO pins for rows 1-8
 
 DEBOUNCE_MS = 50
 

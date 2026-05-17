@@ -3,10 +3,10 @@
 
 On Raspberry Pi: install adafruit-circuitpython-rgb-display + adafruit-blinka.
 Wiring (Waveshare 3.5" or Adafruit 3.5" TFT HAT — adjust pins to match your board):
-  CS  → GPIO8 (CE0)
+  CS  → GPIO8  (CE0, hardware SPI)
   DC  → GPIO25
-  RST → GPIO27
-  BL  → GPIO24 (backlight, set HIGH to enable)
+  RST → GPIO24
+  BL  → GPIO7  (backlight, set HIGH to enable)
 
 Off-Pi: prints state to terminal instead.
 """
@@ -43,7 +43,7 @@ class Display:
             import adafruit_rgb_display.ili9341 as ili9341
             cs   = digitalio.DigitalInOut(board.CE0)
             dc   = digitalio.DigitalInOut(board.D25)
-            rst  = digitalio.DigitalInOut(board.D27)
+            rst  = digitalio.DigitalInOut(board.D24)
             spi  = busio.SPI(clock=board.SCK, MOSI=board.MOSI, MISO=board.MISO)
             self._tft = ili9341.ILI9341(spi, cs=cs, dc=dc, rst=rst, baudrate=24_000_000)
         else:
