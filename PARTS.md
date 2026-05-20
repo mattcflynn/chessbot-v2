@@ -33,11 +33,13 @@ Single supply for the entire build. Both the LED panel and Pi run on 5V, so one 
 
 ## LED Grid (under-board lighting)
 
+The board uses **4×4 studs per chess square** = 32mm per square. A 30 LED/m WS2812B strip has ~33.3mm spacing, which matches almost exactly. Cut into 8 rows of 8 LEDs and lay them in a serpentine pattern under the board. One LED per chess square, 64 total, ~2m of strip.
+
 | Part | Qty | Notes |
 |---|---|---|
-| WS2812B 8×8 LED matrix panel | 1 | Buy as a pre-soldered 64-LED PCB (~$12–20). Search "WS2812B 8x8 matrix panel". Much easier than cutting strip. |
+| WS2812B LED strip, 30 LED/m | ~2m | 64 LEDs total (8×8 serpentine). Search "WS2812B 30 LED/m" — buy white PCB version for cleaner look. ~$10–15. |
 | 74AHCT125 quad level shifter | 1 | Converts Pi's 3.3V data signal to 5V for WS2812B. ~$2. |
-| 1000 µF 6.3V electrolytic capacitor | 1 | Across the shared power bus near the LED panel — absorbs startup surge. |
+| 1000 µF 6.3V electrolytic capacitor | 1 | Across the shared power bus near the LED strip — absorbs startup surge. |
 | 300–500 ohm resistor | 1 | On the data wire between Pi GPIO18 and the level shifter input. |
 
 ---
