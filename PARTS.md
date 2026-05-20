@@ -37,7 +37,7 @@ The board uses **4×4 studs per chess square** = 32mm per square. A 30 LED/m WS2
 
 | Part | Qty | Notes |
 |---|---|---|
-| WS2812B LED strip, 30 LED/m | ~2m | 64 LEDs total (8×8 serpentine). Search "WS2812B 30 LED/m" — buy white PCB version for cleaner look. ~$10–15. |
+| WS2812B LED strip, 30 LED/m | 3m | Need 64 LEDs (2.13m); buy 3m and cut to 64. Search "WS2812B 30 LED/m" or Adafruit #2537 (white PCB). ~$20–30. |
 | 74AHCT125 quad level shifter | 1 | Converts Pi's 3.3V data signal to 5V for WS2812B. ~$2. |
 | 1000 µF 6.3V electrolytic capacitor | 1 | Across the shared power bus near the LED strip — absorbs startup surge. |
 | 300–500 ohm resistor | 1 | On the data wire between Pi GPIO18 and the level shifter input. |
